@@ -67,3 +67,4 @@ fabric.properties
 misc.xml
 .idea/*
 
+.DS_Store
