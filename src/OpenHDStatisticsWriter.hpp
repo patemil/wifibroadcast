@@ -45,12 +45,16 @@ public:
 };
 
 class OpenHDStatisticsWriter{
+    uint8_t rp;
 public:
+    
     // the unique stream ID this processes statistics for
-    const uint8_t RADIO_PORT;
+    const uint8_t RADIO_PORT = 0;
+    
     // Forwarded data
     struct Data{
         // all these values are absolute (like done previously in OpenHD)
+        uint8_t radioport=0;
         // all received packets
         uint64_t count_p_all=0;
         // n packets that were received but could not be used (after already filtering for the right port)
@@ -67,29 +71,21 @@ public:
         // if count_all for a card at position N is 0 nothing has been received on this card from the last call (or the card at position N is not used for this instance)
         std::array<RSSIForWifiCard,MAX_RX_INTERFACES> rssiPerCard{};
     };
+    
+    SocketHelper::UDPForwarder forwarder{"127.0.0.1", 50000};
+
+    OpenHDStatisticsWriter(uint8_t rp) 
+        : RADIO_PORT(rp)
+    {}
+    
     void writeStats(const Data& data){
         // Perhaps RADIO_PORT==0 means video and so on
-        // TODO write to udp port or shared memory or ...
-        if(RADIO_PORT==56){
-            // open video stats shm and write data there or something similar
-        
-            struct sockaddr_in si_other_rssi;
-            int s_rssi, slen_rssi = sizeof(si_other_rssi);
-            si_other_rssi.sin_family = AF_INET;
-            si_other_rssi.sin_port = htons(50000);
-            si_other_rssi.sin_addr.s_addr = inet_addr("127.0.0.1");
-            memset(si_other_rssi.sin_zero, '\0', sizeof(si_other_rssi.sin_zero));
+        // Send stats to openhd_status app
 
-            if ((s_rssi = socket(PF_INET, SOCK_DGRAM, 0)) == -1) {
-            std::cout << "ERROR: Could not create UDP socket!" << std::endl;
-            }
-
-            if (sendto(s_rssi, &data, sizeof(data), 0, (struct sockaddr*)&si_other_rssi, slen_rssi) == -1) {
-                std::cout << "ERROR: Could not send RSSI data!" << std::endl;
-            }
-            close(s_rssi);
-        }
+        forwarder.forwardPacketViaUDP((const uint8_t*) &data, (size_t) sizeof(data));
     }
+    
 };
+
 
 #endif //WIFIBROADCAST_OPENHDSTATISTICSWRITER_H
